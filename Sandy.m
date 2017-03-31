@@ -1,15 +1,15 @@
-function Sandy
+function Sandy1_75
 % _____________________________________________________
 %% 
 % SANDY
 %
 % Instructions:
-% 1. SANDY© requires two input parameters for computing the sediment size 
+% 1. SANDYÂ© requires two input parameters for computing the sediment size 
 %    distribution: nominal sieve openings and cumulative mass of material
 %    retained on each sieve. This information is provided to the program 
 %    through a plain text file (*.txt) arranged in two columns, which 
 %    should be separated by a tab space and must be located in subfolder. 
-%    This subfolder should be in the same folder where the SANDY© script is. 
+%    This subfolder should be in the same folder where the SANDYÂ© script is. 
 %    The data in the first column correspond to the nominal sieve openings 
 %    (in mm) and the second column must refer to the cumulative mass of 
 %    material retained on each sieve (in grams). The data must be sorted 
@@ -18,18 +18,20 @@ function Sandy
 %    it is necessary to create a folder; this is the main folder for the 
 %    program. For each sediment sample that requires analysis, a subfolder 
 %    of the sample should be created and the input file should be within 
-%    this subfolder. The main folder should contain the SANDY© program and 
+%    this subfolder. The main folder should contain the SANDYÂ© program and 
 %    one or more subfolders. When the program starts, the main folder is 
-%    reviewed to determine whether one subfolder (“a sample”) should be 
+%    reviewed to determine whether one subfolder (â€œa sampleâ€) should be 
 %    analysed or several subfolders (multiple analyses).
 % 3.	To run SANDY, in Matlab Command Window should write the command:
 % run('Sandy')
 %
 % Reference:
-% Ruiz-Martinez, G., Rivillas-Ospina, D., Mariño-Tapia, I. and
+% Ruiz-Martinez, G., Rivillas-Ospina, D., MariÃ±o-Tapia, I. and
 % Posada-Vanegas, G. (2016). SANDY: a Matlab tool to estimate the sediment 
-% size distribution from a sieve analysis. Computers & Geosciences.
+% size distribution from a sieve analysis. Computers & Geosciences, 96, July, pp. 104-116 
 % DOI: 10.1016/j.cageo.2016.04.010 
+% https://github.com/cageo/Ruiz-Martinez-2016.git
+
 %
 % The routine is provided "as is", without warranty of any kind, express or implied, 
 % including but not limited to the warranties of merchantability, fitness for a particular 
@@ -39,7 +41,7 @@ function Sandy
 %
 % Copyright, 2010, Gabriel Ruiz-Martinez.
 %
-% Last modification : 04-21-16. v_1_73
+% Last modification : 01-02-17. v_1_75
 % Please, report any bug to matgarlab@yahoo.com
 % _____________________________________________________
 
@@ -63,7 +65,7 @@ fecha = datestr(datevec(now),'dd/mm/yyyy HH:MM:SS');
 fid = fopen('diag_Sandy.log','w');
 fprintf(fid,'***********************************************************\r\n');
 fprintf(fid,'*                                                         *\r\n');
-fprintf(fid,'*       Sandy, Version 1_73 Apr 07 2016 11:02:00          *\r\n');
+fprintf(fid,'*       Sandy, Version 1_74 Sep 22 2016 08:18:00          *\r\n');
 fprintf(fid,'*                  date: %19s              *\r\n',fecha);
 fprintf(fid,'*                                                         *\r\n');
 fprintf(fid,'*                       Diagnostic file                   *\r\n');
@@ -141,6 +143,12 @@ for co = 1 : nfol
                fprintf(fid,'->->-> them is not recognized into ASTM and BSI sizes! \n\r\n');
                idp(co) = 3;
            end
+		   if ( meshes(end) <= 0.02 ) 
+               fprintf('Wow! Wow! Into folder %s...\n',folderrew);
+		       fprintf('You are using a non standard sieve size (<= 0.02 mm), SANDY can not \n');
+               fprintf('compute the sample by moments method. Sorry! Aborting the execution\n\n');
+			   idp(co) = 4;
+		   end 
            clear data meshes
     end
     cd(foldercur);
@@ -148,13 +156,14 @@ end
 wer = find(idp==2);
 wert = find(idp==1);
 werty = find(idp==3);
-if isempty(wer) ~= 0 && isempty(wert) ~= 0 && isempty(werty) ~= 0
+wertyy = find(idp==4);
+if isempty(wer) ~= 0 && isempty(wert) ~= 0 && isempty(werty) ~= 0 && isempty(wertyy) ~= 0
     for i = 1 : nfol
         carpeta = cell2mat(namesubfol(i));
         cd(carpeta);
         fprintf('Analyzing folder: %s\n',num2str(i));
         fprintf(fid,'->->-> Analyzing folder: %s \r\n',num2str(i));
-        [q50,result] = Sandy(carpeta,sieves);
+        [q50,result] = Sandym(carpeta,sieves);
         if nfol >= 2
             close all 
             esta(i,1) = q50;
@@ -168,12 +177,21 @@ if isempty(wer) ~= 0 && isempty(wert) ~= 0 && isempty(werty) ~= 0
             esta(i,9) = result.Yft;
             esta(i,10) = result.ks;
             esta(i,11) = result.z0;
+			esta(i,12) = result.one_percentile_mm;
         end
     
         cd(foldercur);
     end
     if nfol >= 2
             finalplots(nfol,esta,foldercur);
+			
+% 			fid1 = fopen('Summary.txt','w');
+%             fprintf(fid1,'D50(mm)\t Mean(phi)\t SD(mm)\t Skw\t Kur\t Yab\t Ysa\t Yds\t Yft\t ks\t z0\t 1p(microns)\t Mean(microns)\r\n');
+%             for s1 = 1 : nfol
+%               fprintf(fid1,'%6.4f\t %6.3f\t %6.3f\t %6.3f\t %6.3f\t %6.4f\t %6.4f\t %6.4f\t %6.4f\t %6.4f\t %6.4f\t %6.4f\t %6.4f\r\n',...
+%                       esta(s1,1), -log2(esta(s1,2)), -log2(esta(s1,3)), esta(s1,4), esta(s1,5), esta(s1,6), esta(s1,7),...
+%                       esta(s1,8), esta(s1,9),esta(s1,10), esta(s1,11), esta(s1,12)*1000, esta(s1,2)*1000);
+%             end
     end
 end
 tend = toc(tstart);
@@ -191,7 +209,7 @@ close all
 fclose('all');
 end
 
-function [D_50,statisand] = Sandy(a,sieves)
+function [D_50,statisand] = Sandym(a,sieves)
 screen = get(0, 'screensize');     
 nombre = a;
 casos = dir('*.txt');
@@ -227,6 +245,10 @@ if cgra == 2 || isempty(data) == 0
          diamX = Worksheet_sieve_data{1,4} ;
          diamX = diamX';
          diamY = milimeter;
+		 % Percentile list (for UC)
+		 for i = 1:100
+		    perce(i) = interp1(diamX, diamY, i, 'pchip');
+		 end
          D_5 = interp1(diamX, diamY, 5, 'pchip');
          D_10 = interp1(diamX, diamY, 10, 'pchip');
          D_16 = interp1(diamX, diamY, 16, 'pchip');
@@ -238,6 +260,7 @@ if cgra == 2 || isempty(data) == 0
          D_84 = interp1(diamX, diamY, 84, 'pchip');
          D_90 = interp1(diamX, diamY, 90, 'pchip');
          D_95 = interp1(diamX, diamY, 95, 'pchip');
+         D_99 = interp1(diamX, diamY, 99, 'pchip');
          D_5phi = -log2(D_5);     
          D_10phi = -log2(D_10);
          D_16phi = -log2(D_16);
@@ -249,6 +272,8 @@ if cgra == 2 || isempty(data) == 0
          D_84phi = -log2(D_84);
          D_90phi = -log2(D_90);
          D_95phi = -log2(D_95);
+         
+         statisand.one_percentile_mm = D_99;
          
 %          asup = find(diamX>84.13);
 %          ainf = find(diamX<84.13);
@@ -696,7 +721,8 @@ if cgra == 2 || isempty(data) == 0
         fprintf(fid,'\r\n');
         fprintf(fid,'\r\n');
         fprintf(fid,'SANDY, copyright, 2010.');
-        fclose(fid);      
+        fclose(fid);
+        %uni_can(nombre,fecha,perce)
 else
     fprintf('It is found a problem with the input file... \n');
     fprintf('Check the data columns or maybe the file \n');
@@ -930,6 +956,7 @@ saveas(gcf,nameg8);
 clc;
 delete('valoutputSA.mat', 'valoutputSAE.mat');
 end
+
 function Folk_S_Classification(Sand,Silt,Clay,screen)
 % This script is a modification of the TERNPLOT 
 % script by Carl Sandrock (20020827),
@@ -1271,13 +1298,16 @@ ys = ceil((screen(4)-figsize(2))/2);
                 'MenuBar','none',...
                 'name','8.Sandy. - Ternary Diagram (2)');
 end
+
 function [x, y] = frac2xy(fA, fC)
 y = fC*sin(radians(60));
 x = 1 - fA - y*cot(radians(60));
 end
+
 function radians = radians(degrees)
 radians = ((2*pi)/360)*degrees;
 end
+
 function [newAxis] = LinkTopAxisData (TopTickPositions,TopTickLabels)
 % Tim Richards.
 % http://www.mathworks.com/matlabcentral/fileexchange/12131-linktopaxisdata
@@ -1321,6 +1351,7 @@ temp(j)=newAxis;
 set(gcf,'Children',temp);
 axis(oldAxis);
 end
+
 function finalplots(nfol,esta,foldercur)
    figure; 
    bar(1:1:nfol,esta(:,1))
@@ -1424,10 +1455,90 @@ function finalplots(nfol,esta,foldercur)
    xlabel('Y_{deltaic depo/marine depo}');
    ylabel('Y_{fluvial environ/turbidity environ}');
    saveas(gcf,'Y3_Y4.fig');
+   figure;
+   loglog(esta(:,2)*1000,esta(:,12)*1000,...
+                'LineStyle','none',...
+                'Marker','.',...
+                'MarkerEdgeColor','b',...
+                'MarkerFaceColor','b',...
+                'MarkerSize',15);
+   set(gca,'XLim', [10 1000],'YLim',[20 10000],...
+                'XTick',[0 10 15 20 40 60 80 100 200 400 600 800 1000],...
+                'YTick',[20,40,60,80,100,200,400,600,800,1000,2000,4000,6000,8000,10000],...
+                'Xgrid','off',...
+                'Ygrid','off',...
+                'Xcolor',[0 0 0.37],...
+                'Ycolor',[0 0 0.37],...
+                'Box','off',...
+                'FontWeight','bold',...
+                'FontSize',10,...
+                'FontAngle','Oblique',...
+                'XMinorTick','on',...
+                'YMinorTick','on');
+   xlabel('Median (microns)');
+   ylabel('One percentil (microns)');
+   title('C-M Diagram');
+   patch([20;1000;1000],[20;1000;20],'white','LineStyle','none');
+   line([20,1000],[20,1000],'color','red','LineWidth',3);
+   line([15,15],[20,10000],'color','black','LineWidth',2);
+   line([100,100],[100,10000],'color','black','LineWidth',2);
+   line([200,200],[200,10000],'color','black','LineWidth',2);
+   line([10,1000],[1000,1000],'color','black','LineWidth',2);
+   line([10,250],[250,250],'color','black','LineStyle','--','LineWidth',2);
+   line([10,420],[420,420],'color','black','LineStyle','--','LineWidth',2);
+   text(11,3100,'IX');
+   text(40,3100,'III');
+   text(140,3100,'II');
+   text(450,3100,'I');
+   text(11,600,'VII');
+   text(40,600,'VII');
+   text(140,600,'V');
+   text(400,600,'IV');
+   text(50,150,'VI');
+   text(120,80,'C = M','color','red','FontWeight','bold','Rotation',30,...
+       'FontSize',12)
+   text(280,240,'Cu');
+   text(480,410,'Cs');
+   saveas(gcf,'CM-Dia.fig');
    close all;
       [s,mess,messid] = mkdir('final_output');
    if isempty(mess) ~= 1
        mess;
    end
    movefile('*.fig',horzcat(foldercur,'\','final_output'));
+end
+
+function uni_can(nombre,fecha,perce)
+filetxt1 = horzcat('Percentiles_',nombre,'.txt');
+fid1 = fopen(filetxt1,'w');
+fprintf(fid1,'              S A N D \r\n');
+fprintf(fid1,'             S I E V E  \r\n');
+fprintf(fid1,'          A N A L Y S I S \r\n');
+fprintf(fid1,'            R E S U L T S \r\n');
+fprintf(fid1,'\r\n'); 
+fprintf(fid1,' SSSSSSS    AAAAAA    N      N   DDDDDDD     Y       Y \r\n');
+fprintf(fid1,'S          A      A   NN     N   D      D     Y     Y \r\n');
+fprintf(fid1,'S          A      A   N N    N   D       D     Y   Y \r\n');
+fprintf(fid1,' SSSSSS    A      A   N  N   N   D       D      Y Y \r\n');
+fprintf(fid1,'       S   AAAAAAAA   N   N  N   D       D       Y \r\n');
+fprintf(fid1,'       S   A      A   N    N N   D      D        Y \r\n');
+fprintf(fid1,'SSSSSSS    A      A   N     NN   DDDDDDD         Y \r\n');
+fprintf(fid1,'\r\n');
+fprintf(fid1,'*************************************** \r\n');
+fprintf(fid1,'*           Sample                    * \r\n');
+fprintf(fid1,'*************************************** \r\n');
+fprintf(fid1,'Sample: %30s \r\n',nombre);
+fprintf(fid1,'Date: %19s \r\n',fecha);
+fprintf(fid1,'_______________________________________ \r\n');
+fprintf(fid1,'\r\n');
+fprintf(fid1,'*************************************** \r\n');
+fprintf(fid1,'*Percentile\t Grain_Size(mm)          * \r\n');
+fprintf(fid1,'*************************************** \r\n');
+for i = 1 : 100
+    fprintf(fid1,'%3.0d\t\t\t %8.5f\r\n',i,perce(i));
+end
+fprintf(fid1,'\r\n');
+fprintf(fid1,'---------------------------\r\n');
+fprintf(fid1,'SANDY, copyright, 2010.');
+fclose(fid1)
 end
